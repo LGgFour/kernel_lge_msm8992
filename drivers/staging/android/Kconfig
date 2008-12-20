@@ -126,6 +126,10 @@ config SYNC_DEBUG
 	---help---
 	  This makes the sync driver keep track of fence names.
 
+config ANDROID_BINDER_IPC
+	tristate "Android Binder IPC Driver"
+	default y
+
 source "drivers/staging/android/ion/Kconfig"
 
 source "drivers/staging/android/fiq_debugger/Kconfig"
