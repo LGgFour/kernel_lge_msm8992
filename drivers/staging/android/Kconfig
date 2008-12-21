@@ -8,6 +8,10 @@ config ANDROID
 
 if ANDROID
 
+config ANDROID_BINDER_IPC
+        bool "Android Binder IPC Driver"
+        default n
+
 config ANDROID_LOGGER
 	tristate "Android log driver"
 	default n
@@ -125,10 +129,6 @@ config SYNC_DEBUG
 	depends on SYNC
 	---help---
 	  This makes the sync driver keep track of fence names.
-
-config ANDROID_BINDER_IPC
-	tristate "Android Binder IPC Driver"
-	default y
 
 source "drivers/staging/android/ion/Kconfig"
 
