@@ -1563,9 +1563,8 @@ int fiemap_check_flags(struct fiemap_extent_info *fieinfo, u32 fs_flags);
  */
 typedef int (*filldir_t)(void *, const char *, int, loff_t, u64, unsigned);
 struct dir_context {
-	const filldir_t actor;
+	filldir_t actor;
 	loff_t pos;
-	bool romnt;
 };
 
 static inline bool dir_emit(struct dir_context *ctx,
@@ -1573,8 +1572,7 @@ static inline bool dir_emit(struct dir_context *ctx,
 			    u64 ino, unsigned type)
 {
 	return ctx->actor(ctx, name, namelen, ctx->pos, ino, type) == 0;
-};
-
+}
 struct block_device_operations;
 
 /* These macros are for out of kernel modules to test that
