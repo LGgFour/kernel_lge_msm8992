@@ -1023,6 +1023,9 @@ void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
 	bh_lock_sock(sk);
 	odst = sk_dst_get(sk);
 
+	if (!ip_sk_accept_pmtu(sk))
+		goto out;
+
 	if (sock_owned_by_user(sk) || !odst) {
 		__ipv4_sk_update_pmtu(skb, sk, mtu);
 		goto out;
