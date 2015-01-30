@@ -2787,6 +2787,13 @@ static inline void inode_has_no_xattr(struct inode *inode)
 		inode->i_flags |= S_NOSEC;
 }
 
+static inline bool dir_relax(struct inode *inode)
+{
+	mutex_unlock(&inode->i_mutex);
+	mutex_lock(&inode->i_mutex);
+	return !IS_DEADDIR(inode);
+}
+
 extern bool path_noexec(const struct path *path);
 
 #endif /* _LINUX_FS_H */
