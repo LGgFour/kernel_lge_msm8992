@@ -263,6 +263,7 @@ enum
 	LINUX_MIB_TCPSYNRETRANS,		/* TCPSynRetrans */
 	LINUX_MIB_TCPORIGDATASENT,		/* TCPOrigDataSent */
 #endif
+	LINUX_MIB_TCPWQUEUETOOBIG,              /* TCPWqueueTooBig */
 	__LINUX_MIB_MAX
 };
 
