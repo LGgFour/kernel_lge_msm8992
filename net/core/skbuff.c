@@ -354,8 +354,10 @@ refill:
         for (order = NETDEV_FRAG_PAGE_MAX_ORDER; ;) {
             gfp_t gfp = gfp_mask;
 
-            if (order)
-                gfp |= __GFP_COMP | __GFP_NOWARN;
+	    if (order) {
+		gfp |= __GFP_COMP | __GFP_NOWARN;
+		gfp &= ~__GFP_WAIT;
+	    }
             nc->frag.page = alloc_pages(gfp, order);
             if (likely(nc->frag.page))
                 break;
@@ -486,32 +488,31 @@ static void skb_free_head(struct sk_buff *skb)
 
 static void skb_release_data(struct sk_buff *skb)
 {
-    if (!skb->cloned ||
-        !atomic_sub_return(skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1,
-                   &skb_shinfo(skb)->dataref)) {
-        if (skb_shinfo(skb)->nr_frags) {
-            int i;
-            for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
-                skb_frag_unref(skb, i);
-        }
+	struct skb_shared_info *shinfo = skb_shinfo(skb);
+	int i;
+	if (skb->cloned &&
+	    atomic_sub_return(skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1,
+			      &shinfo->dataref))
+		return;
 
-        /*
-         * If skb buf is from userspace, we need to notify the caller
-         * the lower device DMA has done;
-         */
-        if (skb_shinfo(skb)->tx_flags & SKBTX_DEV_ZEROCOPY) {
-            struct ubuf_info *uarg;
+	for (i = 0; i < shinfo->nr_frags; i++)
+		__skb_frag_unref(&shinfo->frags[i]);
+	/*
+	 * If skb buf is from userspace, we need to notify the caller
+	 * the lower device DMA has done;
+	 */
+	if (shinfo->tx_flags & SKBTX_DEV_ZEROCOPY) {
+		struct ubuf_info *uarg;
 
-            uarg = skb_shinfo(skb)->destructor_arg;
-            if (uarg->callback)
-                uarg->callback(uarg, true);
-        }
-
-        if (skb_has_frag_list(skb))
-            skb_drop_fraglist(skb);
-
-        skb_free_head(skb);
+		uarg = shinfo->destructor_arg;
+		if (uarg->callback)
+			uarg->callback(uarg, true);
     }
+
+	if (shinfo->frag_list)
+		kfree_skb_list(shinfo->frag_list);
+
+	skb_free_head(skb);
 }
 
 /*

@@ -130,7 +130,7 @@ struct cbq_class {
 	psched_time_t		penalized;
 	struct gnet_stats_basic_packed bstats;
 	struct gnet_stats_queue qstats;
-	struct gnet_stats_rate_est rate_est;
+	struct gnet_stats_rate_est64 rate_est;
 	struct tc_cbq_xstats	xstats;
 
 	struct tcf_proto	*filter_list;
@@ -621,7 +621,7 @@ static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 
 		time = ktime_set(0, 0);
 		time = ktime_add_ns(time, PSCHED_TICKS2NS(now + delay));
-		hrtimer_start(&q->delay_timer, time, HRTIMER_MODE_ABS);
+		hrtimer_start(&q->delay_timer, time, HRTIMER_MODE_ABS_PINNED);
 	}
 
 	qdisc_unthrottled(sch);
@@ -1402,7 +1402,7 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->link.minidle = -0x7FFFFFFF;
 
 	qdisc_watchdog_init(&q->watchdog, sch);
-	hrtimer_init(&q->delay_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&q->delay_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_PINNED);
 	q->delay_timer.function = cbq_undelay;
 	q->toplevel = TC_CBQ_MAXLEVEL;
 	q->now = psched_get_time();

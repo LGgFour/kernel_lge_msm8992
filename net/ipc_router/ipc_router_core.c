@@ -2770,6 +2770,10 @@ static int loopback_data(struct msm_ipc_port *src,
 	}
 
 	temp_skb = skb_peek_tail(pkt->pkt_fragment_q);
+	if (!temp_skb) {
+		IPC_RTR_ERR("%s: Empty skb\n", __func__);
+		return -EINVAL;
+	}
 	align_size = ALIGN_SIZE(pkt->length);
 	skb_put(temp_skb, align_size);
 	pkt->length += align_size;
@@ -2924,6 +2928,11 @@ static int msm_ipc_router_write_pkt(struct msm_ipc_port *src,
 	}
 
 	temp_skb = skb_peek_tail(pkt->pkt_fragment_q);
+	if (!temp_skb) {
+		IPC_RTR_ERR("%s: Abort invalid pkt\n", __func__);
+		ret = -EINVAL;
+		goto out_write_pkt;
+	}
 	align_size = ALIGN_SIZE(pkt->length);
 	skb_put(temp_skb, align_size);
 	pkt->length += align_size;
@@ -3242,7 +3251,8 @@ int msm_ipc_router_recv_from(struct msm_ipc_port *port_ptr,
 	align_size = ALIGN_SIZE(data_len);
 	if (align_size) {
 		temp_skb = skb_peek_tail((*pkt)->pkt_fragment_q);
-		skb_trim(temp_skb, (temp_skb->len - align_size));
+		if (temp_skb)
+			skb_trim(temp_skb, (temp_skb->len - align_size));
 	}
 	return data_len;
 }
@@ -3778,6 +3788,7 @@ static int msm_ipc_router_add_xprt(struct msm_ipc_router_xprt *xprt)
 static void msm_ipc_router_remove_xprt(struct msm_ipc_router_xprt *xprt)
 {
 	struct msm_ipc_router_xprt_info *xprt_info;
+	struct rr_packet *temp_pkt, *pkt;
 
 	if (xprt && xprt->priv) {
 		xprt_info = xprt->priv;
@@ -3787,6 +3798,15 @@ static void msm_ipc_router_remove_xprt(struct msm_ipc_router_xprt *xprt)
 		mutex_lock(&xprt_info->rx_lock_lhb2);
 		xprt_info->abort_data_read = 1;
 		mutex_unlock(&xprt_info->rx_lock_lhb2);
+		flush_workqueue(xprt_info->workqueue);
+		destroy_workqueue(xprt_info->workqueue);
+		mutex_lock(&xprt_info->rx_lock_lhb2);
+		list_for_each_entry_safe(pkt, temp_pkt,
+					 &xprt_info->pkt_list, list) {
+			list_del(&pkt->list);
+			release_pkt(pkt);
+		}
+		mutex_unlock(&xprt_info->rx_lock_lhb2);
 
 		down_write(&xprt_info_list_lock_lha5);
 		list_del(&xprt_info->list);
@@ -3794,8 +3814,6 @@ static void msm_ipc_router_remove_xprt(struct msm_ipc_router_xprt *xprt)
 
 		msm_ipc_cleanup_routing_table(xprt_info);
 
-		flush_workqueue(xprt_info->workqueue);
-		destroy_workqueue(xprt_info->workqueue);
 		wakeup_source_trash(&xprt_info->ws);
 
 		xprt->priv = 0;

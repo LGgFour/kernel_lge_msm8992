@@ -78,7 +78,7 @@ struct htb_class {
 	/* general class parameters */
 	struct gnet_stats_basic_packed bstats;
 	struct gnet_stats_queue qstats;
-	struct gnet_stats_rate_est rate_est;
+	struct gnet_stats_rate_est64 rate_est;
 	struct tc_htb_xstats xstats;	/* our special stats */
 	int refcnt;		/* usage count of this class */
 
@@ -910,7 +910,7 @@ ok:
 			ktime_t time = ns_to_ktime(next_event);
 			qdisc_throttled(q->watchdog.qdisc);
 			hrtimer_start(&q->watchdog.timer, time,
-				      HRTIMER_MODE_ABS);
+				      HRTIMER_MODE_ABS_PINNED);
 		}
 	} else {
 		schedule_work(&q->work);

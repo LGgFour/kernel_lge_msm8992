@@ -89,6 +89,7 @@
 #include <linux/slab.h>
 #include <linux/xattr.h>
 #include <linux/qmp_sphinx_instrumentation.h>
+#include <linux/nospec.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -489,7 +490,7 @@ static ssize_t sockfs_getxattr(struct dentry *dentry,
 			if (proto_size + 1 > size)
 				goto out;
 
-			strncpy(value, proto_name, proto_size + 1);
+			memcpy(value, proto_name, proto_size + 1);
 		}
 		error = proto_size + 1;
 	}
@@ -533,7 +534,10 @@ int sockfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (!err && (iattr->ia_valid & ATTR_UID)) {
 		struct socket *sock = SOCKET_I(dentry->d_inode);
 
-		sock->sk->sk_uid = iattr->ia_uid;
+		if (sock->sk)
+			sock->sk->sk_uid = iattr->ia_uid;
+		else
+			err = -ENOENT;
 	}
 
 	return err;
@@ -601,12 +605,17 @@ const struct file_operations bad_sock_fops = {
  *	an inode not a file.
  */
 
-void sock_release(struct socket *sock)
+static void __sock_release(struct socket *sock, struct inode *inode)
 {
 	if (sock->ops) {
 		struct module *owner = sock->ops->owner;
 
+		if (inode)
+			mutex_lock(&inode->i_mutex);
 		sock->ops->release(sock);
+		sock->sk = NULL;
+		if (inode)
+			mutex_unlock(&inode->i_mutex);
 		sock->ops = NULL;
 		module_put(owner);
 	}
@@ -623,6 +632,11 @@ void sock_release(struct socket *sock)
 		return;
 	}
 	sock->file = NULL;
+}
+
+void sock_release(struct socket *sock)
+{
+	__sock_release(sock, NULL);
 }
 EXPORT_SYMBOL(sock_release);
 
@@ -1186,7 +1200,7 @@ static int sock_mmap(struct file *file, struct vm_area_struct *vma)
 
 static int sock_close(struct inode *inode, struct file *filp)
 {
-	sock_release(SOCKET_I(inode));
+	__sock_release(SOCKET_I(inode), inode);
 	return 0;
 }
 
@@ -2519,6 +2533,7 @@ SYSCALL_DEFINE2(socketcall, int, call, unsigned long __user *, args)
 
 	if (call < 1 || call > SYS_SENDMMSG)
 		return -EINVAL;
+	call = array_index_nospec(call, SYS_SENDMMSG + 1);
 
 	len = nargs[call];
 	if (len > sizeof(a))
