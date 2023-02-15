@@ -422,6 +422,7 @@ static unsigned long get_bw_and_set_irq(struct hwmon_node *node,
 	node->prev_ab = new_bw;
 	if (ab)
 		*ab = roundup(new_bw, node->bw_step);
+
 	*freq = (new_bw * 100) / io_percent;
 
 	return req_mbps;
