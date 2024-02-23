@@ -37,10 +37,8 @@ int iterate_dir(struct file *file, struct dir_context *ctx)
 
 	res = -ENOENT;
 	if (!IS_DEADDIR(inode)) {
-		ctx->romnt = (inode->i_sb->s_flags & MS_RDONLY);
 		if (file->f_op->iterate) {
 			ctx->pos = file->f_pos;
-			ctx->romnt = (inode->i_sb->s_flags & MS_RDONLY);
 			res = file->f_op->iterate(file, ctx);
 			file->f_pos = ctx->pos;
 		} else {
@@ -102,8 +100,6 @@ static int fillonedir(void * __buf, const char * name, int namlen, loff_t offset
 		buf->result = -EOVERFLOW;
 		return -EOVERFLOW;
 	}
-	if (hide_name(name, namlen) && buf->ctx.romnt)
-		return 0;
 	buf->result++;
 	dirent = buf->dirent;
 	if (!access_ok(VERIFY_WRITE, dirent,
@@ -181,8 +177,6 @@ static int filldir(void * __buf, const char * name, int namlen, loff_t offset,
 		buf->error = -EOVERFLOW;
 		return -EOVERFLOW;
 	}
-	if (hide_name(name, namlen) && buf->ctx.romnt)
-		return 0;
 	dirent = buf->previous;
 	if (dirent) {
 		if (__put_user(offset, &dirent->d_off))
@@ -261,8 +255,6 @@ static int filldir64(void * __buf, const char * name, int namlen, loff_t offset,
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
-	if (hide_name(name, namlen) && buf->ctx.romnt)
-		return 0;
 	dirent = buf->previous;
 	if (dirent) {
 		if (__put_user(offset, &dirent->d_off))
