@@ -8,4 +8,7 @@ config SRCARCH
 	string
 	option env="SRCARCH"
 
+# docker support
+source "virt/docker/Kconfig"
+
 source "arch/$SRCARCH/Kconfig"
