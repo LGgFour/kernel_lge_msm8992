@@ -30,6 +30,19 @@
 			status = "ok";
 		};
 	};
+
+        doom_reg1: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "doom_reg1";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&msm_gpio 0x3f 0x0>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+		status = "okay";
+	};
+
 };
 
 
